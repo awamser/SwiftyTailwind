@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.6.0
+
+### What's Changed
+* Fork maintenance and updates
+
 ## 0.5.0
 
 ### What's Changed

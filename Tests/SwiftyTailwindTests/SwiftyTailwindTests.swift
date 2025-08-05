@@ -12,8 +12,13 @@ final class SwiftyTailwindTests: XCTestCase {
             try await subject.initialize(directory: tmpDir, options: .full)
             
             // Then
-            let tailwindConfigPath = tmpDir.appending(component: "tailwind.config.js")
-            XCTAssertTrue(localFileSystem.exists(tailwindConfigPath))
+            let tailwindCSSPath = tmpDir.appending(component: "tailwind.css")
+            XCTAssertTrue(localFileSystem.exists(tailwindCSSPath))
+            
+            // Verify the CSS file contains v4 configuration
+            let content = String(bytes: try localFileSystem.readFileContents(tailwindCSSPath).contents, encoding: .utf8)
+            XCTAssertTrue(content?.contains("@import \"tailwindcss\"") == true)
+            XCTAssertTrue(content?.contains("@theme") == true)
         })
     }
     
@@ -24,23 +29,38 @@ final class SwiftyTailwindTests: XCTestCase {
             
             let inputCSSPath = tmpDir.appending(component: "input.css")
             let inputCSSContent = """
-            @tailwind components;
+            @import "tailwindcss";
             
-            p {
-                @apply font-bold;
+            @layer components {
+              .my-button {
+                @apply bg-blue-500 text-white px-4 py-2 rounded;
+              }
             }
             """
             let outputCSSPath = tmpDir.appending(component: "output.css")
             
+            // Create a simple HTML file to trigger CSS generation
+            let htmlPath = tmpDir.appending(component: "index.html")
+            let htmlContent = """
+            <!DOCTYPE html>
+            <html>
+            <head><title>Test</title></head>
+            <body>
+                <div class="bg-blue-500 text-white px-4 py-2 rounded">Test</div>
+            </body>
+            </html>
+            """
+            try localFileSystem.writeFileContents(htmlPath, bytes: ByteString(htmlContent.utf8))
             try localFileSystem.writeFileContents(inputCSSPath, bytes: ByteString(inputCSSContent.utf8))
             
             // When
             try await subject.run(input: inputCSSPath, output: outputCSSPath, directory: tmpDir)
             
             // Then
-            let content = String(bytes: try localFileSystem.readFileContents(outputCSSPath).contents, encoding: .utf8)
             XCTAssertTrue(localFileSystem.exists(outputCSSPath))
-            XCTAssertTrue(content?.contains("font-weight: 700") != nil)
+            let content = String(bytes: try localFileSystem.readFileContents(outputCSSPath).contents, encoding: .utf8)
+            // Check for some basic CSS output (v4 generates different CSS than v3)
+            XCTAssertTrue(content?.isEmpty == false)
         })
     }
 }

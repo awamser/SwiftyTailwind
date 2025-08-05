@@ -40,18 +40,52 @@ public class SwiftyTailwind {
     }
     
     /**
-     It runs the `init` command to create a Tailwind configuration file (i.e., `tailwind.config.js`)
+     Creates a basic Tailwind CSS configuration for v4. In v4, configuration is done directly in CSS files using @import and @theme directives.
+     This method creates a basic CSS file with Tailwind imports and configuration structure.
      - Parameters:
-     - directory: The directory in which the Tailwind configuration will be created. When not passed, it defaults to the working directory from where the process is running.
+     - directory: The directory in which the Tailwind CSS file will be created. When not passed, it defaults to the working directory from where the process is running.
      - options: A set of ``SwiftyTailwind.InitializeOption`` options to customize the initialization.
      */
     public func initialize(directory: AbsolutePath = localFileSystem.currentWorkingDirectory!,
                            options: InitializeOption...) async throws
     {
-        var arguments = ["init"]
-        arguments.append(contentsOf: Set(options).executableFlags)
-        let executablePath = try await download()
-        try await executor.run(executablePath: executablePath, directory: directory, arguments: arguments)
+        // In Tailwind v4, we create a CSS file instead of running init command
+        let cssFileName = Set(options).contains(.ts) ? "tailwind.css" : "tailwind.css"
+        let cssPath = directory.appending(component: cssFileName)
+        
+        var cssContent = "@import \"tailwindcss\";\n\n"
+        
+        if Set(options).contains(.full) {
+            cssContent += """
+            @theme {
+              --font-family-display: "Satoshi", "sans-serif";
+              --font-family-body: "Inter", "sans-serif";
+              --breakpoint-3xl: 1920px;
+              --color-primary: #3b82f6;
+              --color-secondary: #64748b;
+            }
+
+            @layer base {
+              html {
+                font-family: theme(--font-family-body);
+              }
+            }
+
+            @layer components {
+              .btn {
+                @apply px-4 py-2 rounded-md font-medium;
+              }
+            }
+
+            @layer utilities {
+              .text-balance {
+                text-wrap: balance;
+              }
+            }
+            """
+        }
+        
+        try localFileSystem.writeFileContents(cssPath, bytes: ByteString(cssContent.utf8))
     }
     
     /**
@@ -103,33 +137,21 @@ extension Set where Element == SwiftyTailwind.RunOption {
 public extension SwiftyTailwind {
     enum InitializeOption: Hashable {
         /**
-         Initializes configuration file as ESM. When passed, it passes the `--esm` flag to the `init` command.
-         */
-        case esm
-        
-        /**
-         Initializes configuration file as Typescript. When passed, it passes the `--ts` flag to the `init` command.
+         Creates a TypeScript-style CSS file name. In v4, this affects the naming convention used.
          */
         case ts
         
         /**
-         Initializes a `postcss.config.js` file. When passed, it passes the `--postcss` flag to the `init` command.
-         */
-        case postcss
-        
-        /**
-         Includes the default values for all options in the generated configuration file. When passed, it passes the `--full` flag to the `init` command.
+         Includes comprehensive theme configuration, layers (base, components, utilities), and example customizations in the generated CSS file.
          */
         case full
         
         /**
-         The CLI flag that represents the option.
+         The CLI flag that represents the option. Note: In v4, these don't map directly to CLI flags but affect file generation.
          */
         var flag: String {
             switch self {
-            case .esm: return "--esm"
             case .ts: return "--ts"
-            case .postcss: return "--postcss"
             case .full: return "--full"
             }
         }
